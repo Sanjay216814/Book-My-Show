@@ -5,13 +5,13 @@ pipeline {
 
     tools {
         jdk 'jdk17'
-        nodejs 'node23'
+        nodejs 'node25'
     }
 
     environment {
         SCANNER_HOME = tool 'sonar-scanner'
-        DOCKER_IMAGE = 'chsanjay/bms:latest'
-        EKS_CLUSTER_NAME = 'sanjay-eks'
+        DOCKER_IMAGE = 'chsanjay/book-my-show:latest'
+        EKS_CLUSTER_NAME = 'sanju-eks'
         AWS_REGION = 'us-east-1'
     }
 
@@ -34,8 +34,8 @@ pipeline {
                 withSonarQubeEnv('sonar-server') {
                     sh ''' 
                     $SCANNER_HOME/bin/sonar-scanner \
-                        -Dsonar.projectName=BMS \
-                        -Dsonar.projectKey=BMS
+                        -Dsonar.projectName=book-my-show \
+                        -Dsonar.projectKey=book-my-show
                     '''
                 }
             }
@@ -64,14 +64,6 @@ pipeline {
                 '''
             }
         }
-
-        stage('OWASP FS Scan') {
-            steps {
-                dependencyCheck additionalArguments: '--scan ./ --disableYarnAudit --disableNodeAudit', odcInstallation: 'DP-Check'
-                dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
-            }
-        }
-
         stage('Trivy FS Scan') {
             steps {
                 sh 'trivy fs . > trivyfs.txt'
