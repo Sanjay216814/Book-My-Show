@@ -3,7 +3,7 @@ pipeline {
     agent any
     tools {
         jdk 'jdk17'
-        nodejs 'node23'
+        nodejs 'node25'
     }
     environment {
         SCANNER_HOME = tool 'sonar-scanner'
@@ -52,12 +52,6 @@ pipeline {
                 '''
             }
         }
-        stage('OWASP FS Scan') {
-            steps {
-                dependencyCheck additionalArguments: '--scan ./ --disableYarnAudit --disableNodeAudit', odcInstallation: 'DP-Check'
-                dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
-            }
-        }
         stage('Trivy FS Scan') {
             steps {
                 sh 'trivy fs . > trivyfs.txt'
@@ -69,10 +63,10 @@ pipeline {
                     withDockerRegistry(credentialsId: 'docker', toolName: 'docker') {
                         sh ''' 
                         echo "Building Docker image..."
-                        docker build --no-cache -t chsanjay/zomato1.0 -f bookmyshow-app/Dockerfile bookmyshow-app
+                        docker build --no-cache -t chsanjay/book-my-show:latest -f bookmyshow-app/Dockerfile bookmyshow-app
 
                         echo "Pushing Docker image to registry..."
-                        docker push chsanjay/zomato1.0
+                        docker push chsanjay/book-my-show:latest
                         '''
                     }
                 }
@@ -82,31 +76,19 @@ pipeline {
             steps {
                 sh ''' 
                 echo "Stopping and removing old container..."
-                docker stop bms || true
-                docker rm bms || true
+                docker stop book-my-show || true
+                docker rm book-my-show || true
 
                 echo "Running new container on port 3000..."
-                docker run -d --restart=always --name bms -p 3000:3000 chsanjay/zomato1.0
+                docker run -d --restart=always --name bms -p 3000:3000 chsanjay/book-my-show:latest
 
                 echo "Checking running containers..."
                 docker ps -a
 
                 echo "Fetching logs..."
                 sleep 5  # Give time for the app to start
-                docker logs bms
+                docker logs book-my-show
                 '''
             }
         }
     }
-    post {
-        always {
-            emailext attachLog: true,
-                subject: "'${currentBuild.result}'",
-                body: "Project: ${env.JOB_NAME}<br/>" +
-                      "Build Number: ${env.BUILD_NUMBER}<br/>" +
-                      "URL: ${env.BUILD_URL}<br/>",
-                to: 'chsanjay906@gmail.com',
-                attachmentsPattern: 'trivyfs.txt,trivyimage.txt'
-        }
-    }
-}
